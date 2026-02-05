@@ -1,0 +1,45 @@
+# Docker Compose setup for HistoryMap
+# This file starts both backend and frontend services
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: historymap-backend
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=sqlite+aiosqlite:///./data/historymap.db
+      - CORS_ORIGINS=["http://localhost:5173","http://localhost:4173","http://localhost:3000"]
+      - DEBUG=true
+    volumes:
+      - ./backend:/app
+      - ./urss.geojson:/app/urss.geojson
+      - historymap-data:/app/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: historymap-frontend
+    ports:
+      - "5173:5173"
+    environment:
+      - VITE_API_URL=http://localhost:8000
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+
+volumes:
+  historymap-data:
